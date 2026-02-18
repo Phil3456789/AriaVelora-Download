@@ -356,10 +356,8 @@ HTML_CONTENT = r'''<!DOCTYPE html>
         let userPassword = localStorage.getItem('userPassword') || '';
         let userAvatar = localStorage.getItem('userAvatar') || '';
         let roomName = localStorage.getItem('room') || 'global';
-// Auto-detect: use localhost for local, deployed URL for production
-let serverUrl = window.location.hostname === 'localhost' || window.location.protocol === 'file:' 
-    ? 'http://localhost:5000' 
-    : 'https://philcord-v4.onrender.com';
+// Always use deployed server
+let serverUrl = 'https://philcord-v4.onrender.com';
         let currentView = 'servers', currentServer = '1', currentChannel = 'general', currentDM = null, replyingTo = null, client = null, inVoice = false;
         // Start fresh - always load from server first
         let messages = {};
