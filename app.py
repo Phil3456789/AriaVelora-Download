@@ -400,12 +400,17 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         }
         
         async function syncWithServer() {
+            // First render from localStorage (already loaded in messages variable)
+            renderMessages();
+            
+            // Then sync with server to get any new messages
             try {
                 const key = currentServer + '_' + currentChannel;
                 const response = await fetch(serverUrl + '/api/messages?server=' + currentServer + '&channel=' + currentChannel);
                 if (response.ok) {
                     const serverMessages = await response.json();
                     messages[key] = serverMessages;
+                    saveMessages();
                     renderMessages();
                 }
             } catch(e) { console.log('Server sync failed:', e); }
