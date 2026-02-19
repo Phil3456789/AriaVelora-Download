@@ -3,7 +3,6 @@ import os
 import sys
 import tempfile
 
-# The complete HTML content
 HTML_CONTENT = r'''<!DOCTYPE html>
 <html>
 <head>
@@ -346,7 +345,7 @@ HTML_CONTENT = r'''<!DOCTYPE html>
     </div>
     <input type="file" id="fileInput" accept="image/*" style="display:none">
     <script>
-        const OWNER_USERNAME = 'im.phil_real';
+        const API_KEY = '';
         
         let localStream = null, peerConnections = {}, isMuted = false, isDeafened = false;
         let voiceUsers = {};
@@ -356,10 +355,8 @@ HTML_CONTENT = r'''<!DOCTYPE html>
         let userPassword = localStorage.getItem('userPassword') || '';
         let userAvatar = localStorage.getItem('userAvatar') || '';
         let roomName = localStorage.getItem('room') || 'global';
-// Always use deployed server
-let serverUrl = 'https://philcord-v4.onrender.com';
+let serverUrl = window.location.origin;
         let currentView = 'servers', currentServer = '1', currentChannel = 'general', currentDM = null, replyingTo = null, client = null, inVoice = false;
-        // Start fresh - always load from server first
         let messages = {};
         let deletedMessages = [];
         let verifiedUsers = JSON.parse(localStorage.getItem('verified_users') || '{}');
@@ -368,13 +365,12 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         let groups = JSON.parse(localStorage.getItem('groups') || '[]');
         let servers = JSON.parse(localStorage.getItem('servers') || '{"1":{"name":"Main Server","icon":"🎮","channels":[{"name":"general","type":"text"},{"name":"Voice","type":"voice"},{"name":"announcements","type":"text"},{"name":"gaming","type":"text"}],"owner":"im.phil_real"},"2":{"name":"Tech Talk","icon":"💻","channels":[{"name":"general","type":"text"},{"name":"Voice","type":"voice"},{"name":"programming","type":"text"}],"owner":"im.phil_real"}}');
         let serverCount = Object.keys(servers).length;
-        
-        let isOwner = username === OWNER_USERNAME;
+        let isOwner = username === 'im.phil_real';
         
         localStorage.setItem('userId', userId);
         
         function checkOwner() {
-            isOwner = username.toLowerCase() === OWNER_USERNAME.toLowerCase();
+            isOwner = username.toLowerCase() === 'im.phil_real';
             if (isOwner) {
                 document.getElementById('ownerBadge').style.display = 'block';
                 document.getElementById('ownerBadge2').style.display = 'block';
@@ -384,26 +380,16 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         }
         
         function saveMessages() {
-            // Messages are saved to server, not localStorage (prevents quota errors)
-            // Only save small data like friends, settings
             localStorage.setItem('verified_users', JSON.stringify(verifiedUsers));
             localStorage.setItem('friends', JSON.stringify(friends));
             localStorage.setItem('friendRequests', JSON.stringify(friendRequests));
             localStorage.setItem('groups', JSON.stringify(groups));
             localStorage.setItem('servers', JSON.stringify(servers));
             localStorage.setItem('deleted_messages', JSON.stringify(deletedMessages));
-            localStorage.setItem('verified_users', JSON.stringify(verifiedUsers));
-            localStorage.setItem('friends', JSON.stringify(friends));
-            localStorage.setItem('friendRequests', JSON.stringify(friendRequests));
-            localStorage.setItem('groups', JSON.stringify(groups));
-            localStorage.setItem('servers', JSON.stringify(servers));
         }
         
         async function syncWithServer() {
-            // First render from localStorage (already loaded in messages variable)
             renderMessages();
-            
-            // Then sync with server to get any new messages
             try {
                 const key = currentServer + '_' + currentChannel;
                 const response = await fetch(serverUrl + '/api/messages?server=' + currentServer + '&channel=' + currentChannel);
@@ -417,7 +403,6 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         }
         
         async function syncServersFromServer() {
-            // Sync servers from server
             try {
                 const response = await fetch(serverUrl + '/api/servers');
                 if (response.ok) {
@@ -436,7 +421,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             try {
                 await fetch(serverUrl + '/api/servers', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': API_KEY},
                     body: JSON.stringify(servers)
                 });
             } catch(e) { console.log('Server save failed'); }
@@ -446,14 +431,13 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             try {
                 await fetch(serverUrl + '/api/messages', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': API_KEY},
                     body: JSON.stringify(msg)
                 });
             } catch(e) { console.log('Server save failed'); }
         }
         
         function init() {
-            // Sync servers from server first
             syncServersFromServer();
             loadUsername();
             loadServers();
@@ -543,7 +527,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             let html = '<div class="channel-category"><span>Voice Channels</span></div>';
             server.channels.filter(c => c.type === 'voice').forEach(ch => {
                 const joined = voiceUsers[currentServer]?.includes(ch.name) ? 'joined' : '';
-                html += `<div class="channel-item voice-channel ${joined}" onclick="joinVoice('${ch.name}')"><span class="channel-icon">🔊</span>${ch.name}</div>`;
+                html += '<div class="channel-item voice-channel ' + joined + '" onclick="joinVoice(\'' + ch.name + '\')"><span class="channel-icon">🔊</span>' + ch.name + '</div>';
             });
             
             html += '<div class="channel-category"><span>Text Channels</span><div class="channel-category-actions">';
@@ -551,8 +535,8 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             html += '</div></div>';
             
             server.channels.filter(c => c.type === 'text').forEach(ch => {
-                const deleteBtn = isOwner ? `<button class="channel-delete" onclick="deleteChannel(event, '${ch.name}')">🗑️</button>` : '';
-                html += `<div class="channel-item ${ch.name === currentChannel ? 'active' : ''}" onclick="selectChannel('${ch.name}')"><span class="channel-icon">#</span>${ch.name}${deleteBtn}</div>`;
+                const deleteBtn = isOwner ? '<button class="channel-delete" onclick="deleteChannel(event, \'' + ch.name + '\')">🗑️</button>' : '';
+                html += '<div class="channel-item ' + (ch.name === currentChannel ? 'active' : '') + '" onclick="selectChannel(\'' + ch.name + '\')"><span class="channel-icon">#</span>' + ch.name + deleteBtn + '</div>';
             });
             
             document.getElementById('channelList').innerHTML = html;
@@ -583,7 +567,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
                 currentServer = Object.keys(servers)[0] || '1';
                 if (!servers[currentServer]) {
                     serverCount++;
-                    servers[currentServer] = {name: 'New Server', icon: '🎮', channels: [{name:'general',type:'text'},{name:'Voice',type:'voice'}], owner: OWNER_USERNAME};
+                    servers[currentServer] = {name: 'New Server', icon: '🎮', channels: [{name:'general',type:'text'},{name:'Voice',type:'voice'}], owner: 'im.phil_real'};
                 }
                 currentChannel = servers[currentServer].channels.find(c => c.type === 'text').name;
                 loadServers();
@@ -606,11 +590,11 @@ let serverUrl = 'https://philcord-v4.onrender.com';
                 section.style.display = 'block';
                 let html = '';
                 if (inVoice) {
-                    const avatarHtml = userAvatar ? `<img src="${userAvatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : username.charAt(0).toUpperCase();
-                    html += `<div class="voice-user"><div class="voice-user-avatar">${avatarHtml}</div><span class="voice-user-name">${displayName || username}</span><span class="voice-user-status">${isMuted ? '🔇' : '🎤'}</span></div>`;
+                    const avatarHtml = userAvatar ? '<img src="' + userAvatar + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover">' : username.charAt(0).toUpperCase();
+                    html += '<div class="voice-user"><div class="voice-user-avatar">' + avatarHtml + '</div><span class="voice-user-name">' + (displayName || username) + '</span><span class="voice-user-status">' + (isMuted ? '🔇' : '🎤') + '</span></div>';
                 }
                 users.forEach(u => {
-                    if (u !== username) html += `<div class="voice-user"><div class="voice-user-avatar">${u.charAt(0).toUpperCase()}</div><span class="voice-user-name">${u}</span></div>`;
+                    if (u !== username) html += '<div class="voice-user"><div class="voice-user-avatar">' + u.charAt(0).toUpperCase() + '</div><span class="voice-user-name">' + u + '</span></div>';
                 });
                 list.innerHTML = html;
             } else {
@@ -640,7 +624,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         
         function showProfileModal() {
             const isVerified = verifiedUsers[username];
-            const userIsOwner = username.toLowerCase() === OWNER_USERNAME.toLowerCase();
+            const userIsOwner = username.toLowerCase() === 'im.phil_real';
             
             if (userAvatar) {
                 document.getElementById('profileAvatarImg').src = userAvatar;
@@ -663,24 +647,16 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             let html = '<button class="channel-item" onclick="showModal(\'addFriendModal\')" style="width:100%;margin-bottom:8px;"><span>+</span><span>Add Friend</span></button>';
             friends.forEach(friend => {
                 const isVerified = verifiedUsers[friend];
-                const isFriendOwner = friend.toLowerCase() === OWNER_USERNAME.toLowerCase();
+                const isFriendOwner = friend.toLowerCase() === 'im.phil_real';
                 const inCall = Object.values(voiceUsers).some(v => v.includes(friend));
                 const nameClass = isFriendOwner ? 'owner' : '';
-                html += `<div class="friend-item" onclick="openDM('${friend}')">
-                    <div class="friend-avatar">${friend.charAt(0)}
-                        ${inCall ? '<span class="friend-voice"></span>' : ''}
-                    </div>
-                    <div class="friend-info">
-                        <div class="friend-name ${nameClass}">${friend} ${isVerified ? '<span class="verified-icon">✓</span>' : ''}</div>
-                        <div class="friend-status">${isFriendOwner ? 'Main Developer & Owner' : (isVerified ? 'Verified' : 'Not verified')}</div>
-                    </div>
-                </div>`;
+                html += '<div class="friend-item" onclick="openDM(\'' + friend + '\')"><div class="friend-avatar">' + friend.charAt(0) + (inCall ? '<span class="friend-voice"></span>' : '') + '</div><div class="friend-info"><div class="friend-name ' + nameClass + '">' + friend + (isVerified ? '<span class="verified-icon">✓</span>' : '') + '</div><div class="friend-status">' + (isFriendOwner ? 'Main Developer & Owner' : (isVerified ? 'Verified' : 'Not verified')) + '</div></div></div>';
             });
             document.getElementById('friendsList').innerHTML = html;
             
             let groupHtml = '';
             groups.forEach(group => {
-                groupHtml += `<div class="friend-item" onclick="openGroup('${group.name}')"><div class="friend-avatar">${group.name.charAt(0)}</div><div class="friend-info"><div class="friend-name">${group.name}</div><div class="friend-status">${group.members.length} members</div></div></div>`;
+                groupHtml += '<div class="friend-item" onclick="openGroup(\'' + group.name + '\')"><div class="friend-avatar">' + group.name.charAt(0) + '</div><div class="friend-info"><div class="friend-name">' + group.name + '</div><div class="friend-status">' + group.members.length + ' members</div></div></div>';
             });
             document.getElementById('groupDMs').innerHTML = groupHtml;
         }
@@ -697,7 +673,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             badge.textContent = friendRequests.length;
             let html = '';
             friendRequests.forEach((req, index) => {
-                html += `<div class="friend-request"><div class="friend-request-name">${req}</div><div class="friend-request-btns"><button class="friend-request-btn accept-btn" onclick="acceptFriend('${req}',${index})">Accept</button><button class="friend-request-btn decline-btn" onclick="declineFriend('${req}',${index})">Decline</button></div></div>`;
+                html += '<div class="friend-request"><div class="friend-request-name">' + req + '</div><div class="friend-request-btns"><button class="friend-request-btn accept-btn" onclick="acceptFriend(\'' + req + '\',' + index + ')">Accept</button><button class="friend-request-btn decline-btn" onclick="declineFriend(\'' + req + '\',' + index + ')">Decline</button></div></div>';
             });
             container.innerHTML = html;
         }
@@ -751,7 +727,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
                 div.dataset.id = msg.id;
                 const time = new Date(msg.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
                 const isVerified = verifiedUsers[msg.user];
-                const msgIsOwner = msg.user.toLowerCase() === OWNER_USERNAME.toLowerCase();
+                const msgIsOwner = msg.user.toLowerCase() === 'im.phil_real';
                 const display = msg.displayName || msg.user;
                 const nameClass = msgIsOwner ? 'owner' : '';
                 
@@ -759,22 +735,9 @@ let serverUrl = 'https://philcord-v4.onrender.com';
                 let content = msg.type === 'image' ? '<img src="' + msg.text + '" class="message-img">' : processMentions(msg.text);
                 if (isDeleted) return;
                 
-                const avatarHtml = msg.avatar ? `<img src="${msg.avatar}">` : msg.user.charAt(0).toUpperCase();
+                const avatarHtml = msg.avatar ? '<img src="' + msg.avatar + '">' : msg.user.charAt(0).toUpperCase();
                 
-                div.innerHTML = `<div class="message-avatar" onclick="showUserProfile('${msg.user}')">${avatarHtml}</div>
-                    <div class="message-content">
-                        <div class="message-header">
-                            <span class="message-username ${nameClass}" onclick="showUserProfile('${msg.user}')">${display} ${msgIsOwner ? '<span class="owner-tag-msg">Owner</span>' : ''} ${msg.user !== display ? '<span class="display-name">@' + msg.user + '</span>' : ''} ${isVerified ? '<span class="verified-icon">✓</span>' : ''}</span>
-                            <span class="message-time">${time}</span>
-                            <span class="message-id" onclick="copyMessageId('${msg.id}')">ID</span>
-                        </div>
-                        ${replyHtml}
-                        <div class="message-text">${content}</div>
-                    </div>
-                    <div class="message-actions">
-                        <button class="message-action-btn" onclick="replyToMessage('${msg.id}','${msg.user}','${msg.text.substring(0,30).replace(/'/g,"\\'")}')">↩️</button>
-                        ${isOwner ? `<button class="message-action-btn" onclick="deleteAnyMessage('${msg.id}')">🗑️</button>` : `<button class="message-action-btn" onclick="deleteMessage('${msg.id}')">🗑️</button>`}
-                    </div>`;
+                div.innerHTML = '<div class="message-avatar" onclick="showUserProfile(\'' + msg.user + '\')">' + avatarHtml + '</div><div class="message-content"><div class="message-header"><span class="message-username ' + nameClass + '" onclick="showUserProfile(\'' + msg.user + '\')">' + display + (msgIsOwner ? '<span class="owner-tag-msg">Owner</span>' : '') + (msg.user !== display ? '<span class="display-name">@' + msg.user + '</span>' : '') + (isVerified ? '<span class="verified-icon">✓</span>' : '') + '</span><span class="message-time">' + time + '</span><span class="message-id" onclick="copyMessageId(\'' + msg.id + '\')">ID</span></div>' + replyHtml + '<div class="message-text">' + content + '</div></div><div class="message-actions"><button class="message-action-btn" onclick="replyToMessage(\'' + msg.id + '\',\'' + msg.user + '\',\'' + msg.text.substring(0,30).replace(/\'/g,"\\'") + '\')">↩️</button>' + (isOwner ? '<button class="message-action-btn" onclick="deleteAnyMessage(\'' + msg.id + '\')">🗑️</button>' : '<button class="message-action-btn" onclick="deleteMessage(\'' + msg.id + '\')">🗑️</button>') + '</div>';
                 document.getElementById('messages').appendChild(div);
             });
             document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
@@ -782,7 +745,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         
         function showUserProfile(user) {
             const isVerified = verifiedUsers[user];
-            const userIsOwner = user.toLowerCase() === OWNER_USERNAME.toLowerCase();
+            const userIsOwner = user.toLowerCase() === 'im.phil_real';
             document.getElementById('profileAvatarText').textContent = user.charAt(0).toUpperCase();
             document.getElementById('profileName').innerHTML = user + (isVerified ? ' <span class="verified-icon">✓</span>' : '') + (userIsOwner ? ' <span class="owner-tag">Main Developer & Owner</span>' : '');
             document.getElementById('profileName').className = 'profile-name' + (userIsOwner ? ' owner' : '');
@@ -808,9 +771,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         }
         
         function sendMessage() {
-            console.log('sendMessage called');
             const text = document.getElementById('msgInput').value.trim();
-            console.log('Text:', text);
             if (!text) return;
             const key = currentDM ? 'dm_' + currentDM : currentServer + '_' + currentChannel;
             if (!messages[key]) messages[key] = [];
@@ -1002,7 +963,6 @@ let serverUrl = 'https://philcord-v4.onrender.com';
         if (localStorage.getItem('theme')) { setTheme(localStorage.getItem('theme')); }
         init();
         
-        // Dev auth functions
         let isDev = false;
         let devHash = localStorage.getItem('devHash') || '';
         
@@ -1013,7 +973,7 @@ let serverUrl = 'https://philcord-v4.onrender.com';
             try {
                 const response = await fetch(serverUrl + '/api/auth/login', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': API_KEY},
                     body: JSON.stringify({user: user, pass: pass})
                 });
                 const data = await response.json();
@@ -1056,24 +1016,8 @@ let serverUrl = 'https://philcord-v4.onrender.com';
 </body>
 </html>'''
 
-print("=" * 50)
-print("  Discord Clone - Starting...")
-print("=" * 50)
-print()
-print("Opening in your browser...")
-print()
-
-# Write HTML to temp file and open it
-import tempfile
-import webbrowser
-
-# Create temp HTML file
 with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
     f.write(HTML_CONTENT)
     temp_file = f.name
 
-# Open the HTML file in default browser
 webbrowser.open('file://' + temp_file)
-
-print("App is now running in your browser!")
-print("(This window will close automatically)")
